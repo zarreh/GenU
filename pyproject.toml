@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "genu"
+version = "0.1.0"
+description = ""
+authors = ["Ali Zarreh <alireza.zarreh@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.11,<4.0"
+python-dotenv = "^1.1.0"
+tqdm = "^4.67.1"
+chromadb = "^1.0.9"
+requests = "^2.32.3"
+beautifulsoup4 = "^4.13.4"
+tldextract = "^5.3.0"
+openai = "^1.78.1"
+langchain = "^0.3.25"
+ipython = "^9.2.0"
+docx = "^0.2.4"
+pypdf2 = "^3.0.1"
+ipykernel = "^6.29.5"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
