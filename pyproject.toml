@@ -24,6 +24,13 @@ langchain-openai = "^0.3.16"
 langgraph = "^0.4.3"
 langchain-ollama = "^0.3.2"
 faiss-cpu = "^1.11.0"
+pandas = "^2.2.3"
+black = "^25.1.0"
+isort = "^6.0.1"
+types-tqdm = "^4.67.0.20250516"
+types-requests = "^2.32.0.20250515"
+pandas-stubs = "^2.2.3.250308"
+langchain-chroma = "^0.2.4"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
