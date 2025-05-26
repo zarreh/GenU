@@ -196,14 +196,15 @@ if __name__ == "__main__":
         _ls = get_job_ids(target_url, total_jobs=total_job_per_link)
         print(f"Found {len(_ls)} job IDs in this page.")
         [job_id_list.append(id) for id in _ls]  # type: ignore
-        print(f"Found {len(list(set(job_id_list)))} uniquer job IDs SO FAR.")
+        print(f"Found {len(list(set(job_id_list)))} unique job IDs SO FAR.")
 
-    print(f"Found {len(list(set(job_id_list)))} uniquer job IDs.")
-    job_df = get_job_data(
-        list(set(job_id_list)),
-        if_save=True,
-        file_name="data/job_data/senior_data_scientist.csv",
-        slow_down=True,
-    )
-    # print(job_df.head(3))
-    save_to_vectorestore(df=job_df, persist_directory="data/job_data/vectorstore")
+    print(f"Found {len(list(set(job_id_list)))} unique job IDs.")
+    print(f"Job ID: {list(set(job_id_list))} ")
+    # job_df = get_job_data(
+    #     list(set(job_id_list)),
+    #     if_save=True,
+    #     file_name="data/job_data/senior_data_scientist.csv",
+    #     slow_down=True,
+    # )
+    # # print(job_df.head(3))
+    # save_to_vectorestore(df=job_df, persist_directory="data/job_data/vectorstore")
