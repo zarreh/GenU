@@ -11,8 +11,29 @@ from langchain_community.vectorstores import FAISS
 from langchain_openai import OpenAIEmbeddings
 from tqdm import tqdm
 
-from genu.Job_agent.config import HEADERS, LINKEDIN_JOB_SEARCH_URL
+from genu.Job_agent.config import HEADERS, LINKEDIN_JOB_SEARCH_PARAMS
 from genu.utils import text_clean
+
+
+def linkedin_link_constructor(search_params: list[dict[str, str | bool]]):
+
+    target_url = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords={}&location={}&f_TPR={}"
+
+    url_list = []
+    for params in search_params:
+        url = target_url.format(
+            params["keywords"].replace(" ", "%20"),  # type: ignore
+            params["location"].replace(" ", "%20"),  # type: ignore
+            params["f_TPR"],
+            # params["start"]
+        )
+        if params["parttime"]:
+            url += "&f_JT=P"
+        if params["remote"]:
+            url += "&f_WT=2"
+        # print(url)
+        url_list.append(url + "&start={}")
+    return url_list
 
 
 def get_job_ids(target_url: str, total_jobs: int = 10) -> list["str"]:
@@ -27,9 +48,7 @@ def get_job_ids(target_url: str, total_jobs: int = 10) -> list["str"]:
 
     # Get all job IDs
     for i in tqdm(range(0, pages)):
-        res = requests.get(
-            target_url.format("Python", "New York", i * 25), headers=HEADERS
-        )
+        res = requests.get(target_url.format(i * 25), headers=HEADERS)
         soup = BeautifulSoup(res.text, "html.parser")
         jobs_on_page = soup.find_all("li")
 
@@ -85,7 +104,7 @@ def get_job_data(
                 "ul", {"class": "description__job-criteria-list"}
             ).find_all(  # type: ignore
                 "li"
-            )  
+            )
 
             # Field names in order they typically appear
             field_names = ["level", "employment_type", "job_function", "industries"]
@@ -133,8 +152,22 @@ def save_to_vectorestore(
     """
     Save job data to a vector store.
     """
-    combine_list = ["title", "company", "description", "job_function", "industries",]
-    metadata_list = ["title", "company", "job_function", "industries", "level", "employment_type" ,"link"]
+    combine_list = [
+        "title",
+        "company",
+        "description",
+        "job_function",
+        "industries",
+    ]
+    metadata_list = [
+        "title",
+        "company",
+        "job_function",
+        "industries",
+        "level",
+        "employment_type",
+        "link",
+    ]
 
     def combine_text_columns(row):
         text_content = ""
@@ -153,7 +186,7 @@ def save_to_vectorestore(
     documents = [
         Document(
             page_content=combine_text_columns(row),
-            metadata= {k: v for k, v in row.items() if k in metadata_list},
+            metadata={k: v for k, v in row.items() if k in metadata_list},
         )
         for _, row in df.iterrows()
     ]
@@ -189,22 +222,21 @@ def save_to_vectorestore(
 
 if __name__ == "__main__":
     print("Starting job scraping...")
-    total_job_per_link = 500
+    total_job_per_link = 200
     job_id_list = []
-    for target_url in LINKEDIN_JOB_SEARCH_URL:
+    linkedin_job_urls = linkedin_link_constructor(LINKEDIN_JOB_SEARCH_PARAMS)
+    for target_url in linkedin_job_urls:
         print(f"Scraping from: {target_url}")
         _ls = get_job_ids(target_url, total_jobs=total_job_per_link)
         print(f"Found {len(_ls)} job IDs in this page.")
         [job_id_list.append(id) for id in _ls]  # type: ignore
-        print(f"Found {len(list(set(job_id_list)))} unique job IDs SO FAR.")
 
     print(f"Found {len(list(set(job_id_list)))} unique job IDs.")
-    print(f"Job ID: {list(set(job_id_list))} ")
-    # job_df = get_job_data(
-    #     list(set(job_id_list)),
-    #     if_save=True,
-    #     file_name="data/job_data/senior_data_scientist.csv",
-    #     slow_down=True,
-    # )
-    # # print(job_df.head(3))
-    # save_to_vectorestore(df=job_df, persist_directory="data/job_data/vectorstore")
+    # print(f"Job ID: {list(set(job_id_list))} ")
+    job_df = get_job_data(
+        list(set(job_id_list)),
+        if_save=True,
+        file_name="data/job_data/senior_data_scientist.csv",
+        slow_down=True,
+    )
+    save_to_vectorestore(df=job_df, persist_directory="data/job_data/vectorstore")
