@@ -41,3 +41,5 @@ LINKEDIN_JOB_SEARCH_PARAMS: list[dict[str, str | bool]] = [
         "parttime": True,  # full-time
     },
 ]
+
+PERSIST_PATH = "data/job_data/vectorstore_faiss"

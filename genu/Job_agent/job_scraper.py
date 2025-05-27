@@ -1,7 +1,7 @@
+import datetime
 import math
 import random
 import time
-import datetime
 
 import pandas as pd
 import requests
@@ -12,7 +12,7 @@ from langchain_community.vectorstores import FAISS
 from langchain_openai import OpenAIEmbeddings
 from tqdm import tqdm
 
-from genu.Job_agent.config import HEADERS, LINKEDIN_JOB_SEARCH_PARAMS
+from genu.Job_agent.config import HEADERS, LINKEDIN_JOB_SEARCH_PARAMS, PERSIST_PATH
 from genu.utils import text_clean
 
 
@@ -133,7 +133,21 @@ def get_job_data(
             job_info["description"] = text_clean(
                 desc_elem.text.strip() if desc_elem else ""
             )
-            job_info["link"] = job_details_url.format(job_id)
+
+            # For the posted time
+            posted_time_elem = soup.find("span", {"class": "posted-time-ago__text"})
+            job_info["posted_time"] = posted_time_elem.text.strip() if posted_time_elem else "N/A"
+
+            # For the number of applicants
+            applicants_elem = soup.find("span", {"class": "num-applicants__caption"})
+            job_info["applicants"] = applicants_elem.text.strip() if applicants_elem else "N/A"
+            job_info["parsing_link"] = job_details_url.format(job_id)
+
+            link_elem = soup.find("a", {"class": "topcard__link"})
+            job_info["job_posting_link"] = link_elem.get("href") if link_elem else "N/A"  # type: ignore
+
+            job_info["job_id"] = job_id
+
             job_info["date"] = date
             job_data.append(job_info)
         except:
@@ -150,7 +164,8 @@ def get_job_data(
 
 
 def save_to_vectorestore(
-    df: pd.DataFrame, persist_directory="data/job_data/vectorstore"
+    df: pd.DataFrame, persist_directory="data/job_data/vectorstore",
+    append_to_vectorestore: bool = True
 ) -> None:
     """
     Save job data to a vector store.
@@ -169,7 +184,11 @@ def save_to_vectorestore(
         "industries",
         "level",
         "employment_type",
-        "link",
+        "posted_time",
+        "applicants",
+        "job_id",
+        "parsing_link",
+        "job_posting_link",
         "date",
     ]
 
@@ -195,39 +214,37 @@ def save_to_vectorestore(
         for _, row in df.iterrows()
     ]
 
-    vectorstore_faiss = FAISS.from_documents(documents, embeddings)
-    vectorstore_faiss.save_local(f"{persist_directory}_faiss")
+    if append_to_vectorestore:
+        # Try to load existing index
+        try:
+            vectorstore = FAISS.load_local(
+                persist_directory,
+                embeddings,
+                allow_dangerous_deserialization=True
+            )
+            print("Loaded existing FAISS index.")
+        except Exception:
+            # If not found, create new
+            vectorstore = FAISS.from_documents([], embeddings)
+            print("Created new FAISS index.")
 
-    # Create and persist the vector store
-    # vectorstore = Chroma.from_documents(
-    #     documents=documents,
-    #     embedding=embeddings,
-    #     persist_directory=f"{persist_directory}_chroma",
-    # )
-
-    # print("Chroma vectorstore count:", vectorstore._collection.count())
-    print("FAISS vectorstore count:", len(vectorstore_faiss.index_to_docstore_id))
-
-    # # Load
-    # loaded_chroma = Chroma(
-    #     persist_directory=persist_directory,
-    #     embedding_function=embeddings
-    # )
-    # print("Loaded:", loaded_chroma.get())
-
-    # loaded_vectorstore = FAISS.load_local(
-    #     f"{persist_directory}_faiss",
-    #     OpenAIEmbeddings(),
-    #     allow_dangerous_deserialization=True,
-    # )
-    # # For FAISS
-    # print("FAISS vectorstore count:", len(loaded_vectorstore.index_to_docstore_id))
+        # Add new documents
+        vectorstore.add_documents(documents)        
+    else:
+        vectorstore = FAISS.from_documents(documents, embeddings)
+    
+    # this will overwrite the existing index if it exists
+    vectorstore.save_local(persist_directory)
+    
+    print("FAISS vectorstore count:", len(vectorstore.index_to_docstore_id))
 
 
 if __name__ == "__main__":
+    
     print("Starting job scraping...")
     total_job_per_link = 500
     job_id_list = []
+    
     linkedin_job_urls = linkedin_link_constructor(LINKEDIN_JOB_SEARCH_PARAMS)
     for target_url in linkedin_job_urls:
         print(f"Scraping from: {target_url}")
@@ -236,13 +253,12 @@ if __name__ == "__main__":
         [job_id_list.append(id) for id in _ls]  # type: ignore
 
     print(f"Found {len(list(set(job_id_list)))} unique job IDs.")
-    # print(f"Job ID: {list(set(job_id_list))} ")
+    
     job_df = get_job_data(
         list(set(job_id_list)),
         if_save=True,
         file_name="data/job_data/senior_data_scientist.csv",
         slow_down=True,
     )
-    save_to_vectorestore(df=job_df, persist_directory="data/job_data/vectorstore")
 
-
+    save_to_vectorestore(df=job_df, persist_directory=PERSIST_PATH, append_to_vectorestore=False)
