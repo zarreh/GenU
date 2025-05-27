@@ -1,6 +1,7 @@
 import math
 import random
 import time
+import datetime
 
 import pandas as pd
 import requests
@@ -77,6 +78,7 @@ def get_job_data(
     """
 
     job_data = []
+    date = datetime.datetime.now().date().isoformat()
 
     # Get details for each job
     job_details_url = "https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/{}"
@@ -132,6 +134,7 @@ def get_job_data(
                 desc_elem.text.strip() if desc_elem else ""
             )
             job_info["link"] = job_details_url.format(job_id)
+            job_info["date"] = date
             job_data.append(job_info)
         except:
             continue
@@ -167,6 +170,7 @@ def save_to_vectorestore(
         "level",
         "employment_type",
         "link",
+        "date",
     ]
 
     def combine_text_columns(row):
@@ -222,7 +226,7 @@ def save_to_vectorestore(
 
 if __name__ == "__main__":
     print("Starting job scraping...")
-    total_job_per_link = 200
+    total_job_per_link = 500
     job_id_list = []
     linkedin_job_urls = linkedin_link_constructor(LINKEDIN_JOB_SEARCH_PARAMS)
     for target_url in linkedin_job_urls:
@@ -240,3 +244,5 @@ if __name__ == "__main__":
         slow_down=True,
     )
     save_to_vectorestore(df=job_df, persist_directory="data/job_data/vectorstore")
+
+
