@@ -229,7 +229,7 @@ def get_job_data(
 if __name__ == "__main__":
 
     print("Starting job scraping...")
-    total_job_per_link = 5
+    total_job_per_link = 500
     job_id_list = []
 
     linkedin_job_urls = linkedin_link_constructor(LINKEDIN_JOB_SEARCH_PARAMS)
