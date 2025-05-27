@@ -165,7 +165,7 @@ def get_job_data(
 
     df = pd.DataFrame.from_dict(job_data)  # type: ignore
     if if_save:
-        df.to_csv(file_name, index=False, encoding="utf-8-sig")
+        df.to_csv(file_name, index=False, encoding="utf-8-sig", mode='a', header=False)
 
     return df
 
