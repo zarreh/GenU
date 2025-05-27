@@ -7,6 +7,7 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 from langchain.schema import Document
+from langchain.vectorstores import FAISS
 from langchain_chroma import Chroma
 from langchain_community.vectorstores import FAISS
 from langchain_openai import OpenAIEmbeddings
@@ -98,3 +99,43 @@ def save_to_vectorestore(
     print("FAISS vectorstore count:", len(vectorstore.index_to_docstore_id))
 
     return vectorstore
+
+
+def vectorstore_to_dataframe(persist_directory, embeddings=OpenAIEmbeddings()):
+    """
+    Load a FAISS vectorstore and convert it to a pandas DataFrame.
+
+    Args:
+        persist_directory (str): Directory where the FAISS index is stored
+        embeddings (optional): Embedding function, defaults to OpenAIEmbeddings if None
+
+    Returns:
+        pd.DataFrame: DataFrame containing document content and metadata
+    """
+    try:
+        vectorstore = FAISS.load_local(
+            persist_directory, embeddings, allow_dangerous_deserialization=True
+        )
+        print(
+            f"Loaded FAISS index with {len(vectorstore.index_to_docstore_id)} documents."
+        )
+    except Exception as e:
+        print(f"Error loading vectorstore: {e}")
+        return pd.DataFrame()  # Return empty DataFrame on error
+
+    rows = []
+    for doc_id in vectorstore.index_to_docstore_id.values():
+        doc = vectorstore.docstore.search(doc_id)
+        if doc:
+            row = {"content": doc.page_content}
+
+            if hasattr(doc, "metadata") and doc.metadata:
+                for key, value in doc.metadata.items():
+                    row[key] = value
+
+            rows.append(row)
+
+    df = pd.DataFrame(rows)
+    print(f"Created DataFrame with shape: {df.shape}")
+
+    return df
