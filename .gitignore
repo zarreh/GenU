@@ -31,8 +31,6 @@ dist/
 build/
 # Ignore package management files
 *.egg-info/
-# Ignore Jupyter Notebook metadata
-*.ipynb
 # Ignore Python wheel files
 *.whl
 # Ignore configuration files
