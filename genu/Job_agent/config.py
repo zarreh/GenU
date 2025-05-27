@@ -43,3 +43,25 @@ LINKEDIN_JOB_SEARCH_PARAMS: list[dict[str, str | bool]] = [
 ]
 
 PERSIST_PATH = "data/job_data/vectorstore_faiss"
+
+COMBINE_LIST = [
+    "title",
+    "company",
+    "description",
+    "job_function",
+    "industries",
+]
+METADATA_LIST = [
+    "title",
+    "company",
+    "job_function",
+    "industries",
+    "level",
+    "employment_type",
+    "posted_time",
+    "applicants",
+    "job_id",
+    "parsing_link",
+    "job_posting_link",
+    "date",
+]

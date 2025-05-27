@@ -12,7 +12,10 @@ from langchain_community.vectorstores import FAISS
 from langchain_openai import OpenAIEmbeddings
 from tqdm import tqdm
 
-from genu.Job_agent.config import HEADERS, LINKEDIN_JOB_SEARCH_PARAMS, PERSIST_PATH
+from genu.Job_agent.config import (COMBINE_LIST, HEADERS,
+                                   LINKEDIN_JOB_SEARCH_PARAMS, METADATA_LIST,
+                                   PERSIST_PATH)
+from genu.Job_agent.vectorestore import save_to_vectorestore
 from genu.utils import text_clean
 
 
@@ -136,11 +139,15 @@ def get_job_data(
 
             # For the posted time
             posted_time_elem = soup.find("span", {"class": "posted-time-ago__text"})
-            job_info["posted_time"] = posted_time_elem.text.strip() if posted_time_elem else "N/A"
+            job_info["posted_time"] = (
+                posted_time_elem.text.strip() if posted_time_elem else "N/A"
+            )
 
             # For the number of applicants
             applicants_elem = soup.find("span", {"class": "num-applicants__caption"})
-            job_info["applicants"] = applicants_elem.text.strip() if applicants_elem else "N/A"
+            job_info["applicants"] = (
+                applicants_elem.text.strip() if applicants_elem else "N/A"
+            )
             job_info["parsing_link"] = job_details_url.format(job_id)
 
             link_elem = soup.find("a", {"class": "topcard__link"})
@@ -163,88 +170,68 @@ def get_job_data(
     return df
 
 
-def save_to_vectorestore(
-    df: pd.DataFrame, persist_directory="data/job_data/vectorstore",
-    append_to_vectorestore: bool = True
-) -> None:
-    """
-    Save job data to a vector store.
-    """
-    combine_list = [
-        "title",
-        "company",
-        "description",
-        "job_function",
-        "industries",
-    ]
-    metadata_list = [
-        "title",
-        "company",
-        "job_function",
-        "industries",
-        "level",
-        "employment_type",
-        "posted_time",
-        "applicants",
-        "job_id",
-        "parsing_link",
-        "job_posting_link",
-        "date",
-    ]
+# def save_to_vectorestore(
+#     df: pd.DataFrame, persist_directory="data/job_data/vectorstore",
+#     append_to_vectorestore: bool = True
+# ) -> None:
+#     """
+#     Save job data to a vector store.
+#     """
 
-    def combine_text_columns(row):
-        text_content = ""
-        for col in combine_list:  # List your text columns here
-            if col in row and pd.notna(
-                row[col]
-            ):  # Check if the column exists and is not NaN
-                text_content += str(row[col]) + " \n "  # Concatenate with a space
-        return text_content.strip()  # Remove trailing spa
 
-    print(f"Shape of table: {df.shape}")
-    # Create embeddings
-    embeddings = OpenAIEmbeddings()
+#     def combine_text_columns(row):
+#         text_content = ""
+#         for col in COMBINE_LIST:  # List your text columns here
+#             if col in row and pd.notna(
+#                 row[col]
+#             ):  # Check if the column exists and is not NaN
+#                 text_content += str(row[col]) + " \n "  # Concatenate with a space
+#         return text_content.strip()  # Remove trailing spa
 
-    # Convert DataFrame to documents (as shown in previous examples)
-    documents = [
-        Document(
-            page_content=combine_text_columns(row),
-            metadata={k: v for k, v in row.items() if k in metadata_list},
-        )
-        for _, row in df.iterrows()
-    ]
+#     print(f"Shape of table: {df.shape}")
+#     # Create embeddings
+#     embeddings = OpenAIEmbeddings()
 
-    if append_to_vectorestore:
-        # Try to load existing index
-        try:
-            vectorstore = FAISS.load_local(
-                persist_directory,
-                embeddings,
-                allow_dangerous_deserialization=True
-            )
-            print("Loaded existing FAISS index.")
-        except Exception:
-            # If not found, create new
-            vectorstore = FAISS.from_documents([], embeddings)
-            print("Created new FAISS index.")
+#     # Convert DataFrame to documents (as shown in previous examples)
+#     documents = [
+#         Document(
+#             page_content=combine_text_columns(row),
+#             metadata={k: v for k, v in row.items() if k in METADATA_LIST},
+#         )
+#         for _, row in df.iterrows()
+#     ]
 
-        # Add new documents
-        vectorstore.add_documents(documents)        
-    else:
-        vectorstore = FAISS.from_documents(documents, embeddings)
-    
-    # this will overwrite the existing index if it exists
-    vectorstore.save_local(persist_directory)
-    
-    print("FAISS vectorstore count:", len(vectorstore.index_to_docstore_id))
+#     if append_to_vectorestore:
+#         # Try to load existing index
+#         try:
+#             vectorstore = FAISS.load_local(
+#                 persist_directory,
+#                 embeddings,
+#                 allow_dangerous_deserialization=True
+#             )
+#             print("Loaded existing FAISS index.")
+#         except Exception:
+#             # If not found, create new
+#             vectorstore = FAISS.from_documents([], embeddings)
+#             print("Created new FAISS index.")
+
+#         # Add new documents
+#         vectorstore.add_documents(documents)
+#     else:
+#         vectorstore = FAISS.from_documents(documents, embeddings)
+
+#     # this will overwrite the existing index if it exists
+#     vectorstore.save_local(persist_directory)
+
+#     print("FAISS vectorstore count:", len(vectorstore.index_to_docstore_id))
 
 
 if __name__ == "__main__":
-    
+
     print("Starting job scraping...")
-    total_job_per_link = 500
+    total_job_per_link = 5
     job_id_list = []
-    
+
     linkedin_job_urls = linkedin_link_constructor(LINKEDIN_JOB_SEARCH_PARAMS)
     for target_url in linkedin_job_urls:
         print(f"Scraping from: {target_url}")
@@ -253,7 +240,7 @@ if __name__ == "__main__":
         [job_id_list.append(id) for id in _ls]  # type: ignore
 
     print(f"Found {len(list(set(job_id_list)))} unique job IDs.")
-    
+
     job_df = get_job_data(
         list(set(job_id_list)),
         if_save=True,
@@ -261,4 +248,10 @@ if __name__ == "__main__":
         slow_down=True,
     )
 
-    save_to_vectorestore(df=job_df, persist_directory=PERSIST_PATH, append_to_vectorestore=False)
+    save_to_vectorestore(
+        df=job_df,
+        persist_directory=PERSIST_PATH,
+        combine_list=COMBINE_LIST,
+        metadata_list=METADATA_LIST,
+        append_to_vectorestore=True,
+    )
