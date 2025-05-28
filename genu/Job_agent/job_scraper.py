@@ -143,6 +143,17 @@ def get_job_data(
                 posted_time_elem.text.strip() if posted_time_elem else "N/A"
             )
 
+            # Parse salary range
+            salary_div = soup.find("div", class_="compensation__salary-range")
+            if salary_div:
+                salary = salary_div.find("div", class_="salary compensation__salary")  # type: ignore
+                if salary:
+                    job_info["salary_range"] = salary.get_text(strip=True)
+                else:
+                    job_info["salary_range"] = None
+            else:
+                job_info["salary_range"] = None
+
             # For the number of applicants
             applicants_elem = soup.find("span", {"class": "num-applicants__caption"})
             job_info["applicants"] = (

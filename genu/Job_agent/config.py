@@ -39,6 +39,7 @@ PERSIST_PATH = "data/job_data/vectorstore_faiss"
 COMBINE_LIST = [
     "title",
     "company",
+    "salary_range",
     "description",
     "job_function",
     "industries",
@@ -46,6 +47,7 @@ COMBINE_LIST = [
 METADATA_LIST = [
     "title",
     "company",
+    "salary_range",
     "job_function",
     "industries",
     "level",
