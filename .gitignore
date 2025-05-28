@@ -3,6 +3,7 @@ pdfs/
 *.csv
 .env
 /notebooks/interview/
+my_resume/
 # Ignore Jupyter Notebook checkpoints
 .ipynb_checkpoints/
 # Ignore Python bytecode files
